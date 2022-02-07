@@ -1,3 +1,4 @@
+from time import time
 from flask import Blueprint, jsonify, request, render_template, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restful import Api, Resource
@@ -8,6 +9,8 @@ import random
 
 #email validation
 from src.checks.valid_email import verify_email
+#otp validation
+from src.checks.valid_otp import verify_otp
 
 
 app = Blueprint('app',__name__)
@@ -64,10 +67,11 @@ class Login(Resource):
                 if targetUser.isVerified==False:
                     one_time_password = random.randint(1000,9999)
                     targetUser.otp = one_time_password
+                    targetUser.otp_released = time()
                     db.session.commit()
                     SendOtp(one_time_password,targetUser.contact_number)
                     SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password))
-                    return jsonify({'msg':'Otp sent successfully on your registered mobile number and email .Please provide the same.'})
+                    return jsonify({'msg':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
                 else:
                     return jsonify({'msg':"User Logged in"})
             else:
@@ -87,12 +91,13 @@ class LoginWithOtp(Resource):
         otp_provided = request.json['otp']
         if User.query.filter_by(email=email).count():
             targetUser = User.query.filter_by(email=email).first()
-            if targetUser.otp == otp_provided: 
+            if verify_otp(targetUser, otp_provided)==True:
                 targetUser.isVerified=True
+                targetUser.otp_released=None
                 db.session.commit()
                 return jsonify({'msg':'OTP verified successfully || User logged in'})
             else:
-                return jsonify({'msg':'Invalid otp provided'})
+                return jsonify({'msg':'Invalid otp provided or Otp Expired'})
         else:
             return jsonify({'msg':'User not found'})
 

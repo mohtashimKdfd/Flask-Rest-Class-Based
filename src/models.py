@@ -14,8 +14,9 @@ class User(db.Model):
     contact_number = db.Column(db.String(12),nullable=False)
     isVerified = db.Column(db.Boolean,default=False)
     otp = db.Column(db.String,nullable=True)
+    otp_released = db.Column(db.FLOAT(precision=15),nullable=True)
 
-    def get_reset_password_token(self, expires_in=600):
+    def get_reset_password_token(self, expires_in=300):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
             'secret', algorithm='HS256')
