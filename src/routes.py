@@ -11,7 +11,8 @@ import random
 from src.checks.valid_email import verify_email
 #otp validation
 from src.checks.valid_otp import verify_otp
-
+#password validation
+from src.checks.valid_password import verify_password
 
 app = Blueprint('app',__name__)
 api = Api(app)
@@ -32,14 +33,17 @@ class Signup(Resource):
         
         username = request.json['username']
         password = request.json['password']
+        if verify_password(password)==False:
+            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"}
+
         hashed_password=generate_password_hash(password)
         email = request.json['email']
         if verify_email(email)==False:
-            return jsonify({"Error":"Invalid email address"})
+            return jsonify({"Email Error":"Invalid email address"})
 
         contact_number = request.json['contact_number']
         if User.query.filter_by(username=username).count():
-            return jsonify({'msg':'username already registered'})
+            return jsonify({'Username error':'username already registered'})
         else:
             newUser = User(username=username,password=hashed_password,email=email,contact_number=contact_number)
             try:
@@ -55,12 +59,16 @@ class Signup(Resource):
 class Login(Resource):
     def post(self):
         if 'email' not in request.json:
-            return {"msg":"Email not found"}
+            return {"Email error":"Email not found"}
         if 'password' not in request.json:
-            return {"msg":"Password not found"}
+            return {"Password error":"Password not found"}
         
         email = request.json['email']
         password = request.json['password']
+
+        if verify_password(password)==False:
+            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"}
+        
         if User.query.filter_by(email=email).count():
             targetUser = User.query.filter_by(email=email).first()
             if check_password_hash(targetUser.password,password)==True:
@@ -71,7 +79,7 @@ class Login(Resource):
                     db.session.commit()
                     SendOtp(one_time_password,targetUser.contact_number)
                     SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password))
-                    return jsonify({'msg':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
+                    return jsonify({'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
                 else:
                     return jsonify({'msg':"User Logged in"})
             else:
