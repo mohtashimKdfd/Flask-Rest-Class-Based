@@ -2,6 +2,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 import jwt
 from time import time
+import os 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
+
 
 db = SQLAlchemy()
 marsh = Marshmallow()
@@ -18,13 +25,16 @@ class User(db.Model):
 
     def get_reset_password_token(self, expires_in=300):
         return jwt.encode(
-            {'reset_password': self.id, 'exp': time() + expires_in},
-            'secret', algorithm='HS256')
+            {
+                'reset_password': self.id,
+                'exp': time() + expires_in
+            },'{}'.format(SECRET_KEY), algorithm='HS256')
 
     def verify_reset_password_token(token):
         try:
-            id = jwt.decode(token, 'secret',
-                            algorithms=['HS256'])['reset_password']
+            id = jwt.decode(
+                token, '{}'.format(SECRET_KEY),
+                algorithms=['HS256'])['reset_password']
         except:
             return
         return User.query.get(id)
@@ -34,13 +44,26 @@ class User(db.Model):
         self.password = password
         self.email = email
         self.contact_number= contact_number
-        # self.isVerified = False
-        # self.otp = None 
 class UserSchema(marsh.Schema):
     class Meta:
         fields = ('username', 'email','contact_number', 'isVerified','otp')
-    
+
+class Posts(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String,nullable=False)
+    content = db.Column(db.String,nullable=False)
+
+    def __init__(self,name,content):
+        self.name = name
+        self.content = content
+
+class PostSchema(marsh.Schema):
+    class Meta:
+        fields = ('name','content')  
 
 
 SingleSerializedUser = UserSchema()
 MutlipleSerializedUsers = UserSchema(many=True)
+
+SinglePosts = PostSchema()
+MultiplePosts = PostSchema(many=True)

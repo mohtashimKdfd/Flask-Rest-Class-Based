@@ -2,10 +2,17 @@ from time import time
 from flask import Blueprint, jsonify, request, render_template, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restful import Api, Resource
-from src.models import db, User, SingleSerializedUser, MutlipleSerializedUsers
+from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
 from src.services.mailers import SendMail, send_password_reset_email, SendResetMail
 from src.services.textmsg import SendOtp
 import random
+import jwt
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 #email validation
 from src.checks.valid_email import verify_email
@@ -13,6 +20,8 @@ from src.checks.valid_email import verify_email
 from src.checks.valid_otp import verify_otp
 #password validation
 from src.checks.valid_password import verify_password
+#token validation
+from src.midlleware.token_midleware import verify_token
 
 app = Blueprint('app',__name__)
 api = Api(app)
@@ -79,7 +88,20 @@ class Login(Resource):
                     db.session.commit()
                     SendOtp(one_time_password,targetUser.contact_number)
                     SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password))
-                    return jsonify({'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
+                    # return jsonify({'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
+
+                    login_token = jwt.encode(
+                        {
+                            'email' : targetUser.email,
+                            'exp': time() + 300
+                        },'{}'.format(SECRET_KEY, algorithms="HS256")
+                    )
+
+                    return jsonify({
+                        'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.',
+                        'token': login_token
+                    })
+
                 else:
                     return jsonify({'msg':"User Logged in"})
             else:
@@ -151,6 +173,22 @@ class ResetPassword(Resource):
             return jsonify({'error':'Token expired or invalid user'})
         return make_response(render_template('reset.html'))
 
+class PostRoutes(Resource):
+    decorators = [verify_token]
+    def get(self,*args, **kwargs):
+        all_posts = Posts.query.all()
+        return MultiplePosts.jsonify(all_posts)
+
+    def post(self):
+        name = request.json['name']
+        content = request.json['content']
+
+        newPost = Posts(name=name,content=content)
+        db.session.add(newPost)
+        db.session.commit()
+
+        return SinglePosts.jsonify(newPost)
+
 
 #ALl routes
 
@@ -161,3 +199,4 @@ api.add_resource(LoginWithOtp,'/OtpLogin')
 api.add_resource(ChangeVerifiedStatus,'/change_status')
 api.add_resource(ResetPasswordRequest,'/reset_password_request')
 api.add_resource(ResetPassword,'/reset_password/<token>')
+api.add_resource(PostRoutes,'/posts')
