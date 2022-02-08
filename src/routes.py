@@ -88,7 +88,6 @@ class Login(Resource):
                     db.session.commit()
                     SendOtp(one_time_password,targetUser.contact_number)
                     SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password))
-                    # return jsonify({'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.'})
 
                     login_token = jwt.encode(
                         {
