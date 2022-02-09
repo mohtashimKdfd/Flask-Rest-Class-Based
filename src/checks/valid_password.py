@@ -11,6 +11,6 @@ def verify_password(password):
         if i in special:
             spec=True
         
-    if num and upper and lower and spec and " " not in password and len(password)>=6 and len(password)<=12:
+    if num and upper and lower and spec and " " not in password and len(password)>=6 and len(password)<=18:
         return True
     return False
