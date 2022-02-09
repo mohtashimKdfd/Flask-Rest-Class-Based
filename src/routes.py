@@ -10,6 +10,9 @@ import jwt
 import os
 from dotenv import load_dotenv
 
+#for http status codes
+from http import HTTPStatus
+
 load_dotenv()
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
@@ -34,49 +37,51 @@ class Home(Resource):
 class Signup(Resource):
     def post(self):
         if 'username' not in request.json:
-            return {"msg":"Username not found"}
+            return {"msg":"Username not found"} , HTTPStatus.BAD_REQUEST
         if 'password' not in request.json:
-            return {"msg":"Password not found"}
+            return {"msg":"Password not found"} , HTTPStatus.BAD_REQUEST
         if 'email' not in request.json:
-            return {"msg":"Email not found"}
+            return {"msg":"Email not found"} , HTTPStatus.BAD_REQUEST
         
         username = request.json['username']
         password = request.json['password']
         if verify_password(password)==False:
-            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"}
+            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"} , HTTPStatus.FORBIDDEN
 
         hashed_password=generate_password_hash(password)
         email = request.json['email']
         if verify_email(email)==False:
-            return jsonify({"Email Error":"Invalid email address"})
+            return jsonify({"Email Error":"Invalid email address"}) , HTTPStatus.FORBIDDEN
 
         contact_number = request.json['contact_number']
         if User.query.filter_by(username=username).count():
-            return jsonify({'Username error':'username already registered'})
+            return jsonify({'Username error':'username already registered'}) , HTTPStatus.CONFLICT
         else:
             newUser = User(username=username,password=hashed_password,email=email,contact_number=contact_number)
             try:
-                SendMail(email,"Your account has been created")
+                SendMail(email,"Your account has been created"), HTTPStatus.CREATED
                 db.session.add(newUser)
                 db.session.commit()
                 
                 return SingleSerializedUser.jsonify(newUser)
             except Exception as e:
                 print(e)
-                return jsonify({'msg':'Unable to create User'})
+                return jsonify({'msg':'Unable to create User'}), HTTPStatus.NOT_ACCEPTABLE
+    def get(self):
+        return ({'msg':'Method not allowed'}),HTTPStatus.METHOD_NOT_ALLOWED
 
 class Login(Resource):
     def post(self):
         if 'email' not in request.json:
-            return {"Email error":"Email not found"}
+            return {"Email error":"Email not found"} , HTTPStatus.BAD_REQUEST
         if 'password' not in request.json:
-            return {"Password error":"Password not found"}
+            return {"Password error":"Password not found"} , HTTPStatus.BAD_REQUEST
         
         email = request.json['email']
         password = request.json['password']
 
         if verify_password(password)==False:
-            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"}
+            return {"Password Verification failed":"Password should be 6-12 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"} , HTTPStatus.FORBIDDEN
         
         if User.query.filter_by(email=email).count():
             targetUser = User.query.filter_by(email=email).first()
@@ -87,7 +92,7 @@ class Login(Resource):
                     targetUser.otp_released = time()
                     db.session.commit()
                     SendOtp(one_time_password,targetUser.contact_number)
-                    SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password))
+                    SendMail(targetUser.email,'Your One time password is {}'.format(one_time_password)) 
 
                     login_token = jwt.encode(
                         {
@@ -99,23 +104,23 @@ class Login(Resource):
                     return jsonify({
                         'Otp message':'Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.',
                         'token': login_token
-                    })
+                    }) , HTTPStatus.OK
 
                 else:
-                    return jsonify({'msg':"User Logged in"})
+                    return jsonify({'msg':"User Logged in"}) , HTTPStatus.ACCEPTED
             else:
-                return jsonify({'msg':'Wrong Password'})
+                return jsonify({'msg':'Wrong Password'}) , HTTPStatus.UNAUTHORIZED
         else:
-            return jsonify({'msg':'User not registered'})
-        # else: 
-            
+            return jsonify({'msg':'User not registered'}) , HTTPStatus.NOT_FOUND
+    def get(self):
+        return ({'msg':'Method not allowed'}),HTTPStatus.METHOD_NOT_ALLOWED
 
 class LoginWithOtp(Resource):
     def post(self):
         if 'otp' not in request.json:
-            return jsonify({'msg':'Otp not provided'})
+            return jsonify({'msg':'Otp not provided'}) , HTTPStatus.BAD_REQUEST
         if 'email' not in request.json:
-            return {"msg":"Email not found"}
+            return {"msg":"Email not found"} , HTTPStatus.BAD_REQUEST
         email = request.json['email']
         otp_provided = request.json['otp']
         if User.query.filter_by(email=email).count():
@@ -124,12 +129,13 @@ class LoginWithOtp(Resource):
                 targetUser.isVerified=True
                 targetUser.otp_released=None
                 db.session.commit()
-                return jsonify({'msg':'OTP verified successfully || User logged in'})
+                return jsonify({'msg':'OTP verified successfully || User logged in'}) , HTTPStatus.ACCEPTED
             else:
-                return jsonify({'msg':'Invalid otp provided or Otp Expired'})
+                return jsonify({'msg':'Invalid otp provided or Otp Expired'}) , HTTPStatus.GONE
         else:
-            return jsonify({'msg':'User not found'})
-
+            return jsonify({'msg':'User not found'}) , HTTPStatus.NOT_FOUND
+    def get(self):
+        return ({'msg':'Method not allowed'}),HTTPStatus.METHOD_NOT_ALLOWED
 class ChangeVerifiedStatus(Resource):
     def post(self): 
         if 'email' not in request.json:
@@ -139,44 +145,43 @@ class ChangeVerifiedStatus(Resource):
         targetUser.isVerified = False
         db.session.commit()
 
-        return jsonify({'msg':'status changed to False'})
+        return jsonify({'msg':'status changed to False'}) ,HTTPStatus.OK
 
 class ResetPasswordRequest(Resource):
     def post(self):
         if 'email' not in request.json:
-            return {"msg":"Email not found"}
+            return {"msg":"Email not found"} , HTTPStatus.BAD_REQUEST
         email = request.json['email']
         user = User.query.filter_by(email=email).first()
         if user:
             send_password_reset_email(user)
-            return jsonify({'msg':'A link to reset password has been sent to your registered email id. '})
+            return jsonify({'msg':'A link to reset password has been sent to your registered email id and is valid for 5 minutes only '}) , HTTPStatus.ACCEPTED
         else:
-            return jsonify({'msg':'User not found'})
+            return jsonify({'msg':'User not found'}) , HTTPStatus.UNAUTHORIZED
 
 
 class ResetPassword(Resource):
     def post(self,token):
         user = User.verify_reset_password_token(token)
         if not user:
-            return jsonify({'msg':'No user found'})
-        if request.method == 'POST':
-            password = request.form['password']
-            user.password = generate_password_hash(password)
-            db.session.commit()
-            return "Password Changed"
-        elif request.method == 'GET':
-            return render_template('reset.html')
+            return jsonify({'msg':'No user found'}) , HTTPStatus.UNAUTHORIZED
+        
+        password = request.form['password']
+        user.password = generate_password_hash(password)
+        db.session.commit()
+        return {"msg":"Password Changed"} , HTTPStatus.ACCEPTED
+    
     def get(self,token):
         user = User.verify_reset_password_token(token)
         if not user:
-            return jsonify({'error':'Token expired or invalid user'})
-        return make_response(render_template('reset.html'))
+            return jsonify({'error':'Token expired or invalid user'}) , HTTPStatus.UNAUTHORIZED
+        return make_response(render_template('reset.html')) , HTTPStatus.OK
 
 class PostRoutes(Resource):
     decorators = [verify_token]
     def get(self,*args, **kwargs):
         all_posts = Posts.query.all()
-        return MultiplePosts.jsonify(all_posts)
+        return MultiplePosts.jsonify(all_posts) , HTTPStatus.ACCEPTED
 
     def post(self):
         name = request.json['name']
@@ -186,7 +191,7 @@ class PostRoutes(Resource):
         db.session.add(newPost)
         db.session.commit()
 
-        return SinglePosts.jsonify(newPost)
+        return SinglePosts.jsonify(newPost) , HTTPStatus.ACCEPTED
 
 
 #ALl routes
