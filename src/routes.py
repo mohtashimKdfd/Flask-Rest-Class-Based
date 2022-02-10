@@ -1,7 +1,8 @@
 from time import time
 from flask import Blueprint, request, render_template, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_restful import Api, Resource
+# from flask_restful import Api, Resource
+from flask_restx import Api, Resource
 from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
 from src.services.mailers import SendMail, send_password_reset_email, SendResetMail
 from src.services.textmsg import SendOtp
@@ -36,11 +37,12 @@ app = Blueprint("app", __name__)
 api = Api(app)
 
 
+@api.route('/')
 class Home(Resource):
     def get(self):
         return {"msg": "Hello, world!"}
 
-
+@api.route('/signup')
 class Signup(Resource):
     def post(self):
         logger.debug('Signup : {}'.format(request.method),request)
@@ -96,7 +98,7 @@ class Signup(Resource):
         logger.debug('Signup : {}'.format(request.method),request)
         return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
 
-
+@api.route('/login')
 class Login(Resource):
     def post(self):
         logger.debug('Login : {}'.format(request.method),request)
@@ -153,7 +155,7 @@ class Login(Resource):
         logger.debug('Login : {}'.format(request.method),request)
         return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
 
-
+@api.route('/OtpLogin')
 class LoginWithOtp(Resource):
     def post(self):
         logger.debug('LoginWithOtp : {}'.format(request.method),request)
@@ -185,7 +187,7 @@ class LoginWithOtp(Resource):
         logger.debug('LoginWithOtp : {}'.format(request.method),request)
         return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
 
-
+@api.route('/change_status')
 class ChangeVerifiedStatus(Resource):
     def post(self):
         logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
@@ -201,6 +203,7 @@ class ChangeVerifiedStatus(Resource):
         logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
         return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
 
+@api.route('/OtpLogin')
 
 class ResetPasswordRequest(Resource):
     def post(self):
@@ -218,7 +221,7 @@ class ResetPasswordRequest(Resource):
         logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
         return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
 
-
+@api.route('/reset_password/<token>')
 class ResetPassword(Resource):
     def post(self, token):
         logger.debug('ResetPassword : {}'.format(request.method),request)
@@ -240,7 +243,7 @@ class ResetPassword(Resource):
             return ({"error" : "Token expired or invalid user"}) , HTTPStatus.UNAUTHORIZED
         return make_response(render_template("reset.html"))
 
-
+@api.route('/posts')
 class PostRoutes(Resource):
     decorators = [verify_token]
 
@@ -264,11 +267,11 @@ class PostRoutes(Resource):
 
 # ALl routes
 
-api.add_resource(Home, "/")
-api.add_resource(Signup, "/signup")
-api.add_resource(Login, "/login")
-api.add_resource(LoginWithOtp, "/OtpLogin")
-api.add_resource(ChangeVerifiedStatus, "/change_status")
-api.add_resource(ResetPasswordRequest, "/reset_password_request")
-api.add_resource(ResetPassword, "/reset_password/<token>")
-api.add_resource(PostRoutes, "/posts")
+# api.add_resource(Home, "/")
+# api.add_resource(Signup, "/signup")
+# api.add_resource(Login, "/login")
+# api.add_resource(LoginWithOtp, "/OtpLogin")
+# api.add_resource(ChangeVerifiedStatus, "/change_status")
+# api.add_resource(ResetPasswordRequest, "/reset_password_request")
+# api.add_resource(ResetPassword, "/reset_password/<token>")
+# api.add_resource(PostRoutes, "/posts")
