@@ -33,6 +33,15 @@ from src.midlleware.token_midleware import verify_token
 # for logging and
 from loguru import logger
 
+#for validating requests
+from src.validateRequest.verify_signup_inputs import isValidRequestSignup
+from src.validateRequest.verify_login_inputs import isValidRequestLogin
+from src.validateRequest.verify_otp_login import isValidRequestOtpLogin
+
+#for parsing requests
+from src.parsers.all_parsers import signup_parser, login_parser, otp_parser
+
+
 app = Blueprint("app", __name__) 
 api = Api(app)
 
@@ -44,31 +53,33 @@ class Home(Resource):
 
 @api.route('/signup')
 class Signup(Resource):
+    """ Used signup parser(reqparse) that allows us to access 
+        user inputs from requests
+        Used a decorator(isValidRequestSignup) that handles throwing
+        error and gives formated response to insufficient user inputs 
+    """
+    @api.expect(signup_parser)
+    @isValidRequestSignup
     def post(self):
-        logger.debug('Signup : {}'.format(request.method),request)
-        if "username" not in request.json:
-            return {"msg": "Username not found"}, HTTPStatus.BAD_REQUEST
-        if "password" not in request.json:
-            return {"msg": "Password not found"}, HTTPStatus.BAD_REQUEST
-        if "email" not in request.json:
-            return {"msg": "Email not found"}, HTTPStatus.BAD_REQUEST
+        args = signup_parser.parse_args()
 
-        username = request.json["username"]
-        password = request.json["password"]
+        logger.debug('Signup : {}'.format(request.method),request)
+
+        username = args['username']
+        password = args['password']
         if verify_password(password) == False:
             return {
                 "Password Verification failed": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
             }, HTTPStatus.FORBIDDEN
 
         hashed_password = generate_password_hash(password)
-        email = request.json["email"]
+        email = args['email']
         if verify_email(email) == False:
             return (
                 ({"Email Error": "Invalid email address"}),
                 HTTPStatus.FORBIDDEN,
             )
-
-        contact_number = request.json["contact_number"]
+        contact_number = args['contact_number']
         if User.query.filter_by(username=username).count():
             return (
                 ({"Username error": "username already registered"}),
@@ -100,15 +111,19 @@ class Signup(Resource):
 
 @api.route('/login')
 class Login(Resource):
+    """ Used login parser(reqparse) that allows us to access 
+        user inputs from requests
+        Used a decorator(isValidRequestLogin) that handles throwing
+        error and gives formated response to insufficient user inputs 
+    """
+    @api.expect(login_parser)
+    @isValidRequestLogin
     def post(self):
         logger.debug('Login : {}'.format(request.method),request)
-        if "email" not in request.json:
-            return {"Email error": "Email not found"}, HTTPStatus.BAD_REQUEST
-        if "password" not in request.json:
-            return {"Password error": "Password not found"}, HTTPStatus.BAD_REQUEST
+        args = login_parser.parse_args()
 
-        email = request.json["email"]
-        password = request.json["password"]
+        email = args['email']
+        password = args['password']
 
         if verify_password(password) == False:
             return {
@@ -157,14 +172,19 @@ class Login(Resource):
 
 @api.route('/OtpLogin')
 class LoginWithOtp(Resource):
+    """ Used loginOtp parser(reqparse) that allows us to access 
+        user inputs from requests
+        Used a decorator(isValidRequestOtpLogin) that handles throwing
+        error and gives formated response to insufficient user inputs 
+    """
+    @api.expect(otp_parser)
+    @isValidRequestOtpLogin
     def post(self):
         logger.debug('LoginWithOtp : {}'.format(request.method),request)
-        if "otp" not in request.json:
-            return ({"msg": "Otp not provided"}), HTTPStatus.BAD_REQUEST
-        if "email" not in request.json:
-            return {"msg": "Email not found"}, HTTPStatus.BAD_REQUEST
-        email = request.json["email"]
-        otp_provided = request.json["otp"]
+        
+        args = otp_parser.parse_args()
+        email = args["email"]
+        otp_provided = args["otp"]
         if User.query.filter_by(email=email).count():
             targetUser = User.query.filter_by(email=email).first()
             if verify_otp(targetUser, otp_provided) == True:
@@ -265,13 +285,4 @@ class PostRoutes(Resource):
 
         return (SinglePosts.jsonify(newPost))
 
-# ALl routes
 
-# api.add_resource(Home, "/")
-# api.add_resource(Signup, "/signup")
-# api.add_resource(Login, "/login")
-# api.add_resource(LoginWithOtp, "/OtpLogin")
-# api.add_resource(ChangeVerifiedStatus, "/change_status")
-# api.add_resource(ResetPasswordRequest, "/reset_password_request")
-# api.add_resource(ResetPassword, "/reset_password/<token>")
-# api.add_resource(PostRoutes, "/posts")
