@@ -1,7 +1,6 @@
 from time import time
 from flask import Blueprint, request, render_template, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
-# from flask_restful import Api, Resource
 from flask_restx import Api, Resource
 from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
 from src.services.mailers import SendMail, send_password_reset_email, SendResetMail
@@ -26,6 +25,9 @@ from src.checks.valid_otp import verify_otp
 
 # password validation
 from src.checks.valid_password import verify_password
+
+#Validate Username
+from src.checks.valid_credentials import isUniqueUser, isRegisteredUser
 
 # token validation
 from src.midlleware.token_midleware import verify_token
@@ -80,30 +82,32 @@ class Signup(Resource):
                 HTTPStatus.FORBIDDEN,
             )
         contact_number = args['contact_number']
-        if User.query.filter_by(username=username).count():
-            return (
-                ({"Username error": "username already registered"}),
-                HTTPStatus.CONFLICT,
-            )
-        else:
-            newUser = User(
-                username=username,
-                password=hashed_password,
-                email=email,
-                contact_number=contact_number,
-            )
-            try:
-                SendMail(email, "Your account has been created"), HTTPStatus.CREATED
-                db.session.add(newUser)
-                db.session.commit()
+        # if User.query.filter_by(username=username).count():
+        #     return (
+        #         ({"Username error": "username already registered"}),
+        #         HTTPStatus.CONFLICT,
+        #     )
+        if isUniqueUser(username,email)==False: return ({"Error":"A user with the same username and email already exists"})
 
-                return SingleSerializedUser.jsonify(newUser)
-            except Exception as e:
-                print(e)
-                return (
-                    ({"msg": "Unable to create User"}),
-                    HTTPStatus.NOT_ACCEPTABLE,
-                )
+        
+        newUser = User(
+            username=username,
+            password=hashed_password,
+            email=email,
+            contact_number=contact_number,
+        )
+        try:
+            SendMail(email, "Your account has been created"), HTTPStatus.CREATED
+            db.session.add(newUser)
+            db.session.commit()
+
+            return SingleSerializedUser.jsonify(newUser)
+        except Exception as e:
+            print(e)
+            return (
+                ({"msg": "Unable to create User"}),
+                HTTPStatus.NOT_ACCEPTABLE,
+            )
 
     def get(self):
         logger.debug('Signup : {}'.format(request.method),request)
@@ -130,41 +134,43 @@ class Login(Resource):
                 "Password Verification failed": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
             }, HTTPStatus.FORBIDDEN
 
-        if User.query.filter_by(email=email).count():
-            targetUser = User.query.filter_by(email=email).first()
-            if check_password_hash(targetUser.password, password) == True:
-                if targetUser.isVerified == False:
-                    one_time_password = random.randint(1000, 9999)
-                    targetUser.otp = one_time_password
-                    targetUser.otp_released = time()
-                    db.session.commit()
-                    SendOtp(one_time_password, targetUser.contact_number)
-                    SendMail(
-                        targetUser.email,
-                        "Your One time password is {}".format(one_time_password),
-                    )
+        if isRegisteredUser(email)==False:
+            return ({"Error": "Invalid email address"})
 
-                    login_token = jwt.encode(
-                        {"email": targetUser.email, "exp": time() + 300},
-                        "{}".format(SECRET_KEY, algorithms="HS256"),
-                    )
+        targetUser = User.query.filter_by(email=email).first()
+        if check_password_hash(targetUser.password, password) == True:
+            if targetUser.isVerified == False:
+                one_time_password = random.randint(1000, 9999)
+                targetUser.otp = one_time_password
+                targetUser.otp_released = time()
+                db.session.commit()
+                SendOtp(one_time_password, targetUser.contact_number)
+                SendMail(
+                    targetUser.email,
+                    "Your One time password is {}".format(one_time_password),
+                )
+                return (
+                    (
+                        {
+                            "Otp message": "Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same."
+                        }
+                    ),
+                    HTTPStatus.OK,
+                )
 
-                    return (
-                        (
-                            {
-                                "Otp message": "Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same.",
-                                "token": login_token,
-                            }
-                        ),
-                        HTTPStatus.OK,
-                    )
-
-                else:
-                    return ({"msg": "User Logged in"}), HTTPStatus.ACCEPTED
             else:
-                return ({"msg": "Wrong Password"}), HTTPStatus.UNAUTHORIZED
+                login_token = jwt.encode(
+                    {"email": targetUser.email, "exp": time() + 300},
+                    "{}".format(SECRET_KEY, algorithms="HS256"),
+                )
+                return (
+                    { 
+                        "msg":"User Logged in",
+                        "token": login_token
+                    }
+                ),HTTPStatus.OK
         else:
-            return ({"msg": "User not registered"}), HTTPStatus.NOT_FOUND
+            return ({"msg": "Wrong Password"}), HTTPStatus.UNAUTHORIZED
 
     def get(self):
         logger.debug('Login : {}'.format(request.method),request)
@@ -191,10 +197,16 @@ class LoginWithOtp(Resource):
                 targetUser.isVerified = True
                 targetUser.otp_released = None
                 db.session.commit()
-                return (
-                    ({"msg": "OTP verified successfully || User logged in"}),
-                    HTTPStatus.ACCEPTED,
+                login_token = jwt.encode(
+                    {"email": targetUser.email, "exp": time() + 300},
+                    "{}".format(SECRET_KEY, algorithms="HS256"),
                 )
+                return (
+                    { 
+                        "msg":"User Logged in",
+                        "token": login_token
+                    }
+                ),HTTPStatus.OK
             else:
                 return (
                     ({"msg": "Invalid otp provided or Otp Expired"}),
