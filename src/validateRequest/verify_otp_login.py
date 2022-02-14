@@ -6,8 +6,8 @@ def isValidRequestOtpLogin(f):
     @wraps(f)
     def validate(*args, **kwargs):
         if "email" not in request.json:
-            return {"msg": "Email not found"}, HTTPStatus.BAD_REQUEST
+            return {"msg": "Email not found"}, 400
         if "otp" not in request.json:
-            return {"msg": "Otp not found"}, HTTPStatus.BAD_REQUEST
+            return {"msg": "Otp not found"}, 400
         return f(*args, **kwargs)
     return validate

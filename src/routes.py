@@ -10,9 +10,6 @@ import jwt
 import os
 from dotenv import load_dotenv
 
-# for http status codes
-from http import HTTPStatus
-
 load_dotenv()
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -72,21 +69,16 @@ class Signup(Resource):
         if verify_password(password) == False:
             return {
                 "Password Verification failed": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
-            }, HTTPStatus.FORBIDDEN
+            }, 403
 
         hashed_password = generate_password_hash(password)
         email = args['email']
         if verify_email(email) == False:
             return (
                 ({"Email Error": "Invalid email address"}),
-                HTTPStatus.FORBIDDEN,
+                403,
             )
         contact_number = args['contact_number']
-        # if User.query.filter_by(username=username).count():
-        #     return (
-        #         ({"Username error": "username already registered"}),
-        #         HTTPStatus.CONFLICT,
-        #     )
         if isUniqueUser(username,email)==False: return ({"Error":"A user with the same username and email already exists"})
 
         
@@ -97,7 +89,7 @@ class Signup(Resource):
             contact_number=contact_number,
         )
         try:
-            SendMail(email, "Your account has been created"), HTTPStatus.CREATED
+            SendMail(email, "Your account has been created"), 201
             db.session.add(newUser)
             db.session.commit()
 
@@ -106,12 +98,12 @@ class Signup(Resource):
             print(e)
             return (
                 ({"msg": "Unable to create User"}),
-                HTTPStatus.NOT_ACCEPTABLE,
+                406,
             )
 
     def get(self):
         logger.debug('Signup : {}'.format(request.method),request)
-        return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
+        return ({"msg": "Method not allowed"}), 405
 
 @api.route('/login')
 class Login(Resource):
@@ -132,7 +124,7 @@ class Login(Resource):
         if verify_password(password) == False:
             return {
                 "Password Verification failed": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
-            }, HTTPStatus.FORBIDDEN
+            }, 403
 
         if isRegisteredUser(email)==False:
             return ({"Error": "Invalid email address"})
@@ -155,7 +147,7 @@ class Login(Resource):
                             "Otp message": "Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same."
                         }
                     ),
-                    HTTPStatus.OK,
+                    200,
                 )
 
             else:
@@ -168,13 +160,13 @@ class Login(Resource):
                         "msg":"User Logged in",
                         "token": login_token
                     }
-                ),HTTPStatus.OK
+                ),200
         else:
-            return ({"msg": "Wrong Password"}), HTTPStatus.UNAUTHORIZED
+            return ({"msg": "Wrong Password"}), 401
 
     def get(self):
         logger.debug('Login : {}'.format(request.method),request)
-        return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
+        return ({"msg": "Method not allowed"}), 405
 
 @api.route('/OtpLogin')
 class LoginWithOtp(Resource):
@@ -206,18 +198,18 @@ class LoginWithOtp(Resource):
                         "msg":"User Logged in",
                         "token": login_token
                     }
-                ),HTTPStatus.OK
+                ),200
             else:
                 return (
                     ({"msg": "Invalid otp provided or Otp Expired"}),
-                    HTTPStatus.GONE,
+                    410,
                 )
         else:
-            return ({"msg": "User not found"}), HTTPStatus.NOT_FOUND
+            return ({"msg": "User not found"}), 404
 
     def get(self):
         logger.debug('LoginWithOtp : {}'.format(request.method),request)
-        return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
+        return ({"msg": "Method not allowed"}), 405
 
 @api.route('/change_status')
 class ChangeVerifiedStatus(Resource):
@@ -230,10 +222,10 @@ class ChangeVerifiedStatus(Resource):
         targetUser.isVerified = False
         db.session.commit()
 
-        return ({"msg": "status changed to False"}), HTTPStatus.OK
+        return ({"msg": "status changed to False"}), 200
     def get(self):
         logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
-        return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
+        return ({"msg": "Method not allowed"}), 405
 
 @api.route('/OtpLogin')
 
@@ -241,17 +233,17 @@ class ResetPasswordRequest(Resource):
     def post(self):
         logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
         if "email" not in request.json:
-            return {"msg": "Email not found"}, HTTPStatus.BAD_REQUEST
+            return {"msg": "Email not found"}, 400
         email = request.json["email"]
         user = User.query.filter_by(email=email).first()
         if user:
             send_password_reset_email(user)
-            return ({"msg": "A link to reset password has been sent to your registered email id and is valid for 5 minutes only "}), HTTPStatus.ACCEPTED
+            return ({"msg": "A link to reset password has been sent to your registered email id and is valid for 5 minutes only "}), 202
         else:
-            return ({"msg": "User not found"}), HTTPStatus.UNAUTHORIZED
+            return ({"msg": "User not found"}), 401
     def get(self):
         logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
-        return ({"msg": "Method not allowed"}), HTTPStatus.METHOD_NOT_ALLOWED
+        return ({"msg": "Method not allowed"}), 405
 
 @api.route('/reset_password/<token>')
 class ResetPassword(Resource):
@@ -259,20 +251,20 @@ class ResetPassword(Resource):
         logger.debug('ResetPassword : {}'.format(request.method),request)
         user = User.verify_reset_password_token(token)
         if not user:
-            return ({"msg": "No user found"}), HTTPStatus.UNAUTHORIZED
+            return ({"msg": "No user found"}), 401
 
         password = request.form["password"]
         if verify_password(password) == False:
             return ({"Password Verification failed": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"})
         user.password = generate_password_hash(password)
         db.session.commit()
-        return ({"msg": "Password Changed"}), HTTPStatus.ACCEPTED
+        return ({"msg": "Password Changed"}), 202
 
     def get(self, token):
         logger.debug('ResetPassword : {}'.format(request.method),request)
         user = User.verify_reset_password_token(token)
         if not user:
-            return ({"error" : "Token expired or invalid user"}) , HTTPStatus.UNAUTHORIZED
+            return ({"error" : "Token expired or invalid user"}) , 401
         return make_response(render_template("reset.html"))
 
 @api.route('/posts')
