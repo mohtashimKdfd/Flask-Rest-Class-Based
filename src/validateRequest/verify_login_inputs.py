@@ -8,8 +8,14 @@ def isValidRequestLogin(f):
         # if "username" not in request.json:
         #     return {"msg": "Username not found"}, 400
         if "email" not in request.json:
-            return {"msg": "Email not found"}, 400
+            return {
+                "Error": "400 Bad Request",
+                "Description": "Email not found"
+            }, 400
         if "password" not in request.json:
-            return {"msg": "Password not found"}, 400
+            return {
+                "Error": "400 Bad Request",
+                "Description": "Password not found"
+            }, 400
         return f(*args, **kwargs)
     return validate
