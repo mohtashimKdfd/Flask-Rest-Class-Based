@@ -28,6 +28,7 @@ from src.checks.valid_credentials import isUniqueUser, isRegisteredUser
 
 # token validation
 from src.midlleware.token_midleware import verify_token
+from src.midlleware.auth import authorize
 
 # for logging and
 from loguru import logger
@@ -269,8 +270,8 @@ class ResetPassword(Resource):
 
 @api.route('/posts')
 class PostRoutes(Resource):
-    decorators = [verify_token]
-
+    @verify_token
+    @authorize(roles=("admin",'normal'))
     def get(self, *args, **kwargs):
         logger.debug('PostRoutes : {}'.format(request.method),request)
 
