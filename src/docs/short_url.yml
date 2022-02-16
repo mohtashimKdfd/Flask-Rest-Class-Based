@@ -1,0 +1,14 @@
+Redirects to a Real URL
+
+--- 
+
+# tags:
+#   -User 
+parameters:
+  -in: path
+  name: /
+  required: true 
+
+responses:
+  200:
+    description: Fetched

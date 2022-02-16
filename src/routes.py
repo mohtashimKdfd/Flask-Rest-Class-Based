@@ -1,5 +1,5 @@
 from time import time
-from flask import Blueprint, request, render_template, url_for, make_response
+from flask import Blueprint, request, jsonify, render_template, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restx import Api, Resource
 from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
@@ -41,13 +41,21 @@ from src.validateRequest.verify_otp_login import isValidRequestOtpLogin
 #for parsing requests
 from src.parsers.all_parsers import signup_parser, login_parser, otp_parser
 
+#for swagger
+from flasgger import Swagger, swag_from
+from src.config.swagger import template, swagger_config
+
+#for pagination
+from src.pagination_folder.paginater import generate_data
 
 app = Blueprint("app", __name__) 
 api = Api(app)
 
 
-@api.route('/')
+
+@api.route('/home')
 class Home(Resource):
+    @swag_from('docs/home/main.yml')
     def get(self):
         return {"msg": "Hello, world!"}
 
@@ -298,14 +306,25 @@ class PostRoutes(Resource):
         Verify token makes sure a valid jwt token is provided in the header of request
         authorize decorator defines roles based access control
     """
-    @verify_token
+    # @verify_token
     @authorize(roles=('admin','normal'))
+    # @swag_from('docs/posts/get.yaml')
     def get(self, *args, **kwargs):
         logger.debug('PostRoutes : {}'.format(request.method),request)
+        
+        '''
+            Pagination
+            Page represents currpage
+            Per_page shows the number of posts to show in current page
+        '''
+        
 
-        all_posts = Posts.query.all()
-        return MultiplePosts.jsonify(all_posts)
+        meta_data=[]
+        
 
+        return (generate_data())
+    
+    # @swag_from('docs/posts/post.yaml')
     def post(self):
         logger.debug('PostRoutes : {}'.format(request.method),request)
 
