@@ -69,6 +69,14 @@ class Signup(Resource):
     @api.expect(signup_parser)
     @isValidRequestSignup
     def post(self):
+
+        '''
+            The method is for the post request for new users to signup
+            It takes email, password, contact_number and username and validates the inputs and adds the new user into the database
+            The OTP is valid for 5 minutes and is sent to contact number of user registered and email 
+        '''
+
+
         args = signup_parser.parse_args()
 
         logger.debug('Signup : {}'.format(request.method),request)
@@ -130,6 +138,14 @@ class Login(Resource):
     @api.expect(login_parser)
     @isValidRequestLogin
     def post(self):
+
+        '''
+            The method is for the post request for users to login
+            It takes email and password and validates and then generates a 4 digit random otp_parser
+            The OTP is valid for 5 minutes and is sent to contact number of user registered and email 
+        '''
+
+
         logger.debug('Login : {}'.format(request.method),request)
         args = login_parser.parse_args()
 
@@ -205,6 +221,11 @@ class LoginWithOtp(Resource):
     @api.expect(otp_parser)
     @isValidRequestOtpLogin
     def post(self):
+        '''
+            The method is for the post request for users to login with otp
+            It takes email and otp and validates and then generates a 4 digit random otp_parser
+            Once the otp is verified it changes the logged in status of user in db
+        '''
         logger.debug('LoginWithOtp : {}'.format(request.method),request)
         
         args = otp_parser.parse_args()
