@@ -1,7 +1,8 @@
 from time import time
 from flask import Blueprint, request, jsonify, render_template, url_for, make_response
+from importlib_resources import path
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_restx import Api, Resource
+from flask_restx import Api, Resource, Namespace
 from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
 from src.services.mailers import SendMail, send_password_reset_email, SendResetMail
 from src.services.textmsg import SendOtp
@@ -42,9 +43,10 @@ from src.validateRequest.verify_otp_login import isValidRequestOtpLogin
 #for parsing requests
 from src.parsers.all_parsers import signup_parser, login_parser, otp_parser
 
-#for swagger
-from flasgger import Swagger, swag_from
-from src.config.swagger import template, swagger_config
+# #for swagger 
+# from flask_restful_swagger import swagger
+
+
 
 #for pagination
 from src.pagination_folder.paginater import generate_data
@@ -71,18 +73,44 @@ app = Blueprint("app", __name__)
 api = Api(app)
 
 
+authorizations = {
+    'api_key' : {
+        'type' : 'apiKey',
+        'in' : 'header',
+        'name' : 'token'
+    }
+}
 
-@api.route('/home')
+
+homespace = Namespace('Home Page',description="Introductory")
+user_signup = Namespace('New User Signup',description="This is for registering new users into db")
+user_login = Namespace('User Login',description="This is for existing users to login")
+postspace = Namespace('Post Space',description="Fetch posts from database", authorizations=authorizations,security='api_key')
+
+reset_password = Namespace('Reset Password',description="This is for resetting password")
+
+
+api.add_namespace(homespace,path='/')
+api.add_namespace(user_signup,path='/')
+api.add_namespace(user_login,path="/")
+api.add_namespace(postspace,path="/")
+api.add_namespace(reset_password,path='/')
+
+
+
+
+@homespace.route('/home')
 class Home(Resource):
-    @swag_from('docs/home/main.yml')
     @loguru.logger.catch()
     def get(self):
         try:
             return {'msg': "Hello, world!"}
         except Exception as e:
             raise Exception(e)
-@api.route('/signup')
+
+@user_signup.route('/signup')
 class Signup(Resource):
+    
     """ Used signup parser(reqparse) that allows us to access 
         user inputs from requests
         Used a decorator(isValidRequestSignup) that handles throwing
@@ -91,6 +119,9 @@ class Signup(Resource):
     @api.expect(signup_parser)
     @isValidRequestSignup
     @loguru.logger.catch() #for logging
+
+    
+
     def post(self):
 
         '''
@@ -151,13 +182,18 @@ class Signup(Resource):
 
     @loguru.logger.catch() #for logging
     def get(self):
+
+        '''
+            Currently this method is not allowed in development phase
+        '''
+
         try:
             logger.debug('Signup : {}'.format(request.method),request)
             return ({"Error":"405","msg": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
-@api.route('/login')
+@user_login.route('/login')
 class Login(Resource):
     """ Used login parser(reqparse) that allows us to access 
         user inputs from requests
@@ -239,6 +275,9 @@ class Login(Resource):
 
     @loguru.logger.catch() #for logging
     def get(self):
+        '''
+            Currently this method is not allowed in development phase
+        '''
         try:
             logger.debug('Login : {}'.format(request.method),request)
             return ({
@@ -247,7 +286,7 @@ class Login(Resource):
         except Exception as e:
             Exception(e)
 
-@api.route('/OtpLogin')
+@user_login.route('/OtpLogin')
 class LoginWithOtp(Resource):
     """ Used loginOtp parser(reqparse) that allows us to access 
         user inputs from requests
@@ -299,16 +338,22 @@ class LoginWithOtp(Resource):
 
     @loguru.logger.catch() #for logging
     def get(self):
+        '''
+            Currently this method is not allowed in development phase
+        '''
         try:
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
             return ({"Error":"405","msg": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
-@api.route('/change_status')
+@user_login.route('/change_status')
 class ChangeVerifiedStatus(Resource):
     @loguru.logger.catch() #for logging
     def post(self):
+        '''
+            This route is used to change the status of a user to unverified in db.
+        '''
         try:
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
             if "email" not in request.json:
@@ -324,17 +369,23 @@ class ChangeVerifiedStatus(Resource):
     
     @loguru.logger.catch() #for logging
     def get(self):
+        '''
+            Currently this method is not allowed in development phase
+        '''
         try:
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
             return ({"Erro":"405","Description": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
-@api.route('/OtpLogin')
+@reset_password.route('/reset_password_request')
 
 class ResetPasswordRequest(Resource):
     @loguru.logger.catch() #for logging
     def post(self):
+        '''
+            This method is used to send a reset password request to the server
+        '''
         try:
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
             if "email" not in request.json:
@@ -351,16 +402,22 @@ class ResetPasswordRequest(Resource):
 
     @loguru.logger.catch() #for logging
     def get(self):
+        '''
+            Currently this method is not allowed in development phase
+        '''
         try:
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
             return ({"Error":"405","Description": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
-@api.route('/reset_password/<token>')
+@reset_password.route('/reset_password/<token>')
 class ResetPassword(Resource):
     @loguru.logger.catch() #for logging
     def post(self, token):
+        '''
+            This method comes along with a token that validates the request and user
+        '''
         try:
             logger.debug('ResetPassword : {}'.format(request.method),request)
             user = User.verify_reset_password_token(token)
@@ -382,6 +439,9 @@ class ResetPassword(Resource):
 
     @loguru.logger.catch() #for logging
     def get(self, token):
+        '''
+            Currently this method is used to render the sendgrid template 
+        '''
         try:
             logger.debug('ResetPassword : {}'.format(request.method),request)
             user = User.verify_reset_password_token(token)
@@ -391,18 +451,22 @@ class ResetPassword(Resource):
         except Exception as e:
             raise Exception(e)
 
-@api.route('/posts')
+@postspace.route('/posts')
+@postspace.doc(security="api_key")
 class PostRoutes(Resource):
     """
         Verify token makes sure a valid jwt token is provided in the header of request
         authorize decorator defines roles based access control
     """
-    @verify_token
+    @verify_token 
     @authorize(roles=('admin','normal'))
-    # @swag_from('docs/posts/get.yaml')
-
     @loguru.logger.catch() #for logging
     def get(self, *args, **kwargs):
+        '''
+            This method is used to fetch data from database
+        '''
+
+        
         try:
             logger.debug('PostRoutes : {}'.format(request.method),request)
             
@@ -411,14 +475,17 @@ class PostRoutes(Resource):
                 Page represents currpage
                 Per_page shows the number of posts to show in current page
             '''            
-            return (generate_data())
+            # return (generate_data())
+            return MultiplePosts.jsonify(Posts.query.all())
         except Exception as e:
             raise Exception(e)
 
-    # @swag_from('docs/posts/post.yaml')
 
     @loguru.logger.catch() #for logging
     def post(self):
+        '''
+            This method is used to create new data into db
+        '''
         try:
             logger.debug('PostRoutes : {}'.format(request.method),request)
 
