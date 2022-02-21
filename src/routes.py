@@ -43,8 +43,8 @@ from src.validateRequest.verify_otp_login import isValidRequestOtpLogin
 #for parsing requests
 from src.parsers.all_parsers import signup_parser, login_parser, otp_parser
 
-# #for swagger 
-# from flask_restful_swagger import swagger
+#handling errors
+from src.config.error_codes import error
 
 
 
@@ -139,7 +139,7 @@ class Signup(Resource):
             password = args['password']
             if verify_password(password) == False:
                 return {
-                    "Error" :"403",
+                    "Error" : error['403'],
                     "Description":"Password Verification failed",
                     "Meta Data": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
                 }, 403
@@ -149,13 +149,13 @@ class Signup(Resource):
             if verify_email(email) == False:
                 return (
                     ({
-                        "Error":"403",
+                        "Error": error['403'],
                         "Description":"Email Error",
                         "Meta Data": "Invalid email address"
                     }),403,
                 )
             contact_number = args['contact_number']
-            if isUniqueUser(username,email)==False: return ({"Error":"403","Error":"A user with the same username and email already exists"}),403
+            if isUniqueUser(username,email)==False: return ({"Error":error['403'],"Error":"A user with the same username and email already exists"}),403
 
             
             newUser = User(
@@ -169,11 +169,11 @@ class Signup(Resource):
                 db.session.add(newUser)
                 db.session.commit()
 
-                return SingleSerializedUser.jsonify(newUser)
+                return SingleSerializedUser.jsonify(newUser) , 201
             except Exception as e:
                 print(e)
                 return (
-                    ({  "Error":"406",
+                    ({  "Error":error["406"],
                         "msg": "Unable to create User"}),
                     406,
                 )
@@ -189,7 +189,7 @@ class Signup(Resource):
 
         try:
             logger.debug('Signup : {}'.format(request.method),request)
-            return ({"Error":"405","msg": "Method not allowed"}), 405
+            return ({"Error":error["405"],"msg": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
@@ -220,14 +220,14 @@ class Login(Resource):
 
             if verify_password(password) == False:
                 return {
-                    "Error" :"403",
+                    "Error" :error["403"],
                     "Description":"Password Verification failed",
                     "Meta Data": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
                 }, 403
 
             if isRegisteredUser(email)==False:
                 return ({
-                    "Error":"400",
+                    "Error":error["400"],
                     "Description":"Invalid email address",
                     "Meta Data": "No user registered with this email address"}) ,400
 
@@ -246,7 +246,7 @@ class Login(Resource):
                     return (
                         (
                             {
-                                "Status":"200",
+                                "Status":error["200"],
                                 "Description": "Otp sent successfully",
                                 "Meta Data": "Otp sent successfully on your registered mobile number and email and is valid for 5 minutes .Please provide the same."
                             }
@@ -261,7 +261,7 @@ class Login(Resource):
                     )
                     return (
                         { 
-                            "Status":"200",
+                            "Status":error["200"],
                             "Description":"User Logged in",
                             "token": login_token,
                             "Meta Data": "Please use the above token to access your account"
@@ -269,7 +269,7 @@ class Login(Resource):
                     ),200
             else:
                 return ({
-                    "Error":"401","Description": "Wrong Password"}), 401
+                    "Error":error["401"],"Description": "Wrong Password"}), 401
         except Exception as e:
             raise Exception(e)
 
@@ -281,7 +281,7 @@ class Login(Resource):
         try:
             logger.debug('Login : {}'.format(request.method),request)
             return ({
-                "Error": "405",
+                "Error": error['405'],
                 "msg": "Method not allowed"}), 405
         except Exception as e:
             Exception(e)
@@ -320,19 +320,19 @@ class LoginWithOtp(Resource):
                     )
                     return (
                         { 
-                            "Status":"200",
+                            "Status":error['200'],
                             "Description":"User Logged in",
                             "token": login_token
                         }
                     ),200
                 else:
                     return (
-                        ({  "Error":"410",
+                        ({  "Error":error['410'],
                             "Description": "Invalid otp provided or Otp Expired"}),
                         410,
                     )
             else:
-                return ({"Error":"404","Description": "User not found"}), 404
+                return ({"Error":error['404'],"Description": "User not found"}), 404
         except Exception as e:
             raise Exception(e)
 
@@ -343,7 +343,7 @@ class LoginWithOtp(Resource):
         '''
         try:
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
-            return ({"Error":"405","msg": "Method not allowed"}), 405
+            return ({"Error":error['405'],"msg": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
@@ -357,13 +357,13 @@ class ChangeVerifiedStatus(Resource):
         try:
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
             if "email" not in request.json:
-                return {"Error":"400","Description": "Email not found"}, 400
+                return {"Error":error['400'],"Description": "Email not found"}, 400
             email = request.json["email"]
             targetUser = User.query.filter_by(email=email).first()
             targetUser.isVerified = False
             db.session.commit()
 
-            return ({"Status":"200","Description": "status changed to False"}), 200
+            return ({"Status":error['200'],"Description": "status changed to False"}), 200
         except Exception as e:
             raise Exception(e)
     
@@ -374,7 +374,7 @@ class ChangeVerifiedStatus(Resource):
         '''
         try:
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
-            return ({"Erro":"405","Description": "Method not allowed"}), 405
+            return ({"Erro":error['405'],"Description": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
@@ -389,14 +389,14 @@ class ResetPasswordRequest(Resource):
         try:
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
             if "email" not in request.json:
-                return {"Error":"400","Description": "Email not found"}, 400
+                return {"Error":error['400'],"Description": "Email not found"}, 400
             email = request.json["email"]
             user = User.query.filter_by(email=email).first()
             if user:
                 send_password_reset_email(user)
-                return ({"Status":"200","msg": "A link to reset password has been sent to your registered email id and is valid for 5 minutes only "}), 202
+                return ({"Status":error['200'],"msg": "A link to reset password has been sent to your registered email id and is valid for 5 minutes only "}), 202
             else:
-                return ({"Error":"401","Description": "User not found"}), 401
+                return ({"Error":error['401'],"Description": "User not found"}), 401
         except Exception as e:
             raise Exception(e)
 
@@ -407,7 +407,7 @@ class ResetPasswordRequest(Resource):
         '''
         try:
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
-            return ({"Error":"405","Description": "Method not allowed"}), 405
+            return ({"Error":error['405'],"Description": "Method not allowed"}), 405
         except Exception as e:
             raise Exception(e)
 
@@ -422,18 +422,18 @@ class ResetPassword(Resource):
             logger.debug('ResetPassword : {}'.format(request.method),request)
             user = User.verify_reset_password_token(token)
             if not user:
-                return ({"Error":"401","Description": "No user found"}), 401
+                return ({"Error":error['401'],"Description": "No user found"}), 401
 
             password = request.form["password"]
             if verify_password(password) == False:
                 return {
-                    "Error" :"403",
+                    "Error" :error['4053'],
                     "Description":"Password Verification failed",
                     "Meta Data": "Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces"
                 }, 403
             user.password = generate_password_hash(password)
             db.session.commit()
-            return ({"Status":"202","Description": "Password Changed"}), 202
+            return ({"Status":error['202'],"Description": "Password Changed"}), 202
         except Exception as e:
             raise Exception(e)
 

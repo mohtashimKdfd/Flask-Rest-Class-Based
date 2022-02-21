@@ -13,10 +13,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 db = SQLAlchemy()
 marsh = Marshmallow()
 
+"""Models"""
 class User(db.Model):
-    '''
-        User model is created to register and create new user in database and Authentication
-    '''
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, unique=True)
