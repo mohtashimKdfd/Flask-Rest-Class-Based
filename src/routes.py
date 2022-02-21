@@ -60,13 +60,7 @@ loguru.logger.add(
 )
 loguru.logger.info('Loguru is up and running')
 
-@loguru.logger.catch()
-def log_exception():
-    try:
-        print(2+20)
-    except Exception as e:  
-        raise Exception(e)
-log_exception()
+
 
 app = Blueprint("app", __name__) 
 api = Api(app)
@@ -137,6 +131,7 @@ class Signup(Resource):
             username = args['username']
             password = args['password']
             if verify_password(password) == False:
+                logger.error('Password Verification Failed.Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces ')
                 return {
                     "Error" : error['403'],
                     "Description":"Password Verification failed",
@@ -146,6 +141,7 @@ class Signup(Resource):
             hashed_password = generate_password_hash(password)
             email = args['email']
             if verify_email(email) == False:
+                logger.error("Email verification failed")
                 return (
                     ({
                         "Error": error['403'],
@@ -154,7 +150,9 @@ class Signup(Resource):
                     }),403,
                 )
             contact_number = args['contact_number']
-            if isUniqueUser(username,email)==False: return ({"Error":error['403'],"Error":"A user with the same username and email already exists"}),403
+            if isUniqueUser(username,email)==False:
+                logger.error("User already exists") 
+                return ({"Error":error['403'],"Error":"A user with the same username and email already exists"}),403
 
             
             newUser = User(
@@ -167,6 +165,8 @@ class Signup(Resource):
                 SendMail(email, "Your account has been created"), 201
                 db.session.add(newUser)
                 db.session.commit()
+
+                logger.success("New user created successfully with username : {}".format(username))
 
                 return SingleSerializedUser.jsonify(newUser) , 201
             except Exception as e:
@@ -185,6 +185,7 @@ class Signup(Resource):
         '''
             Currently this method is not allowed in development phase
         '''
+        logger.info("Request not allowed in development phase")
 
         try:
             logger.debug('Signup : {}'.format(request.method),request)
@@ -218,6 +219,7 @@ class Login(Resource):
             password = args['password']
 
             if verify_password(password) == False:
+                logger.error('Password Verification Failed.Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces ')
                 return {
                     "Error" :error["403"],
                     "Description":"Password Verification failed",
@@ -225,12 +227,17 @@ class Login(Resource):
                 }, 403
 
             if isRegisteredUser(email)==False:
+                logger.error('Invalid Email Address. No user registered with this email address')
                 return ({
                     "Error":error["400"],
                     "Description":"Invalid email address",
                     "Meta Data": "No user registered with this email address"}) ,400
 
             targetUser = User.query.filter_by(email=email).first()
+
+            logger.info('{} wants to login || Verifying password...'.format(targetUser.username))
+            
+
             if check_password_hash(targetUser.password, password) == True:
                 if targetUser.isVerified == False:
                     one_time_password = random.randint(1000, 9999)
@@ -258,6 +265,7 @@ class Login(Resource):
                         {"email": targetUser.email, "exp": time() + 300},
                         "{}".format(SECRET_KEY, algorithms="HS256"),
                     )
+                    logger.success('{} logged in successfully'.format(targetUser.username))
                     return (
                         { 
                             "Status":error["200"],
@@ -267,6 +275,7 @@ class Login(Resource):
                         }
                     ),200
             else:
+                logger.error('{} entered wrong password'.format(targetUser.username))
                 return ({
                     "Error":error["401"],"Description": "Wrong Password"}), 401
         except Exception as e:
@@ -277,6 +286,8 @@ class Login(Resource):
         '''
             Currently this method is not allowed in development phase
         '''
+        logger.info("Request not allowed in development phase")
+
         try:
             logger.debug('Login : {}'.format(request.method),request)
             return ({
@@ -309,14 +320,19 @@ class LoginWithOtp(Resource):
             otp_provided = args["otp"]
             if User.query.filter_by(email=email).count():
                 targetUser = User.query.filter_by(email=email).first()
+                
+                logger.info('{} is requesting to verify otp'.format(targetUser.username))
+
                 if verify_otp(targetUser, otp_provided) == True:
                     targetUser.isVerified = True
                     targetUser.otp_released = None
+                    logger.success('Otp verification successful for {}'.format(targetUser.username))
                     db.session.commit()
                     login_token = jwt.encode(
                         {"email": targetUser.email, "exp": time() + 300},
                         "{}".format(SECRET_KEY, algorithms="HS256"),
                     )
+                    logger.success('{} logged in successfully'.format(targetUser.username))
                     return (
                         { 
                             "Status":error['200'],
@@ -325,12 +341,14 @@ class LoginWithOtp(Resource):
                         }
                     ),200
                 else:
+                    logger.info('Otp verification failed for {}. Either otp entered is wrong or otp expired'.format(targetUser.username))
                     return (
                         ({  "Error":error['410'],
                             "Description": "Invalid otp provided or Otp Expired"}),
                         410,
                     )
             else:
+                logger.info('No user found with the provided credentials')
                 return ({"Error":error['404'],"Description": "User not found"}), 404
         except Exception as e:
             raise Exception(e)
@@ -340,6 +358,8 @@ class LoginWithOtp(Resource):
         '''
             Currently this method is not allowed in development phase
         '''
+        logger.info("Request not allowed in development phase")
+
         try:
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
             return ({"Error":error['405'],"msg": "Method not allowed"}), 405
@@ -371,6 +391,7 @@ class ChangeVerifiedStatus(Resource):
         '''
             Currently this method is not allowed in development phase
         '''
+        logger.info("Request not allowed in development phase")
         try:
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
             return ({"Erro":error['405'],"Description": "Method not allowed"}), 405
@@ -391,10 +412,14 @@ class ResetPasswordRequest(Resource):
                 return {"Error":error['400'],"Description": "Email not found"}, 400
             email = request.json["email"]
             user = User.query.filter_by(email=email).first()
+
             if user:
+                logger.info('{} has requested to reset password'.format(user.username))
                 send_password_reset_email(user)
+                logger.success('A link was sent to reset password on {}s email'.format(user.username))
                 return ({"Status":error['200'],"msg": "A link to reset password has been sent to your registered email id and is valid for 5 minutes only "}), 202
             else:
+                logger.error("No user found with the specified email")
                 return ({"Error":error['401'],"Description": "User not found"}), 401
         except Exception as e:
             raise Exception(e)
@@ -404,6 +429,8 @@ class ResetPasswordRequest(Resource):
         '''
             Currently this method is not allowed in development phase
         '''
+        logger.info("Request not allowed in development phase")
+
         try:
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
             return ({"Error":error['405'],"Description": "Method not allowed"}), 405
@@ -421,10 +448,11 @@ class ResetPassword(Resource):
             logger.debug('ResetPassword : {}'.format(request.method),request)
             user = User.verify_reset_password_token(token)
             if not user:
+                logger.info("The link to reset password is invalid or it is expired")
                 return ({"Error":error['401'],"Description": "No user found"}), 401
-
             password = request.form["password"]
             if verify_password(password) == False:
+                logger.error('Password Verification Failed.Password should be 6-18 characters long and should contain atleast one upper case character, one lower case character and one special character(!,@,#,&) and should not contain empty spaces ')
                 return {
                     "Error" :error['4053'],
                     "Description":"Password Verification failed",
@@ -432,6 +460,7 @@ class ResetPassword(Resource):
                 }, 403
             user.password = generate_password_hash(password)
             db.session.commit()
+            logger.success("{} has successfully reset their password".format(user.username))
             return ({"Status":error['202'],"Description": "Password Changed"}), 202
         except Exception as e:
             raise Exception(e)
