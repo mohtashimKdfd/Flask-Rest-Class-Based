@@ -1,13 +1,10 @@
 from flask import request
 from src.models import Posts, db 
-def generate_data():
-    page=1 #default
+def generate_data(page):
     per_page=2 #default
-    if 'page' in request.json:
-        page = int(request.json['page'])
     
-    if 'per_page' in request.json:
-        per_page = request.json['per_page']
+    # if 'per_page' in request.json:
+    #     per_page = request.json['per_page']
     
     allPosts = db.session.query(Posts).paginate(page,per_page)
     response = {}

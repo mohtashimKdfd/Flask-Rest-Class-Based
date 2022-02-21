@@ -1,6 +1,5 @@
 from time import time
 from flask import Blueprint, request, jsonify, render_template, url_for, make_response
-from importlib_resources import path
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restx import Api, Resource, Namespace
 from src.models import db, User, SingleSerializedUser, Posts, SinglePosts, MultiplePosts
@@ -451,17 +450,17 @@ class ResetPassword(Resource):
         except Exception as e:
             raise Exception(e)
 
-@postspace.route('/posts')
-@postspace.doc(security="api_key")
+@postspace.route('/posts/<int:page>')
+# @postspace.doc(security="api_key")
 class PostRoutes(Resource):
     """
         Verify token makes sure a valid jwt token is provided in the header of request
         authorize decorator defines roles based access control
     """
-    @verify_token 
+    @verify_token()
     @authorize(roles=('admin','normal'))
     @loguru.logger.catch() #for logging
-    def get(self, *args, **kwargs):
+    def get(self,page,*args,**kwargs):
         '''
             This method is used to fetch data from database
         '''
@@ -475,11 +474,35 @@ class PostRoutes(Resource):
                 Page represents currpage
                 Per_page shows the number of posts to show in current page
             '''            
-            # return (generate_data())
-            return MultiplePosts.jsonify(Posts.query.all())
+            return (generate_data(page))
+            # return MultiplePosts.jsonify(Posts.query.all())
         except Exception as e:
             raise Exception(e)
 
+
+    @loguru.logger.catch() #for logging
+    def post(self,page):
+        '''
+            Currently this method is not allowed in development phase
+        '''
+        try:
+            logger.debug('LoginWithOtp : {}'.format(request.method),request)
+            return ({"Error":error['405'],"msg": "Method not allowed"}), 405
+        except Exception as e:
+            raise Exception(e)
+
+@postspace.route('/newPost')
+class NewPost(Resource):
+    @loguru.logger.catch() #for logging
+    def get(self):
+        '''
+            Currently this method is not allowed in development phase
+        '''
+        try:
+            logger.debug('LoginWithOtp : {}'.format(request.method),request)
+            return ({"Error":error['405'],"msg": "Method not allowed"}), 405
+        except Exception as e:
+            raise Exception(e)
 
     @loguru.logger.catch() #for logging
     def post(self):
