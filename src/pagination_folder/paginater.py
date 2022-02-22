@@ -18,6 +18,9 @@ def generate_data(page):
     meta_data={}
     total_posts = Posts.query.count()
     current_pages_visited = per_page*page
+    remaining_pages = total_posts - current_pages_visited
+    meta_data['total_posts'] = total_posts
+    meta_data['remaining_pages'] = remaining_pages
     if total_posts > current_pages_visited:
         meta_data['next_page'] = True
     else:
