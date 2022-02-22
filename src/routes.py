@@ -82,7 +82,7 @@ postspace = Namespace('Post Space',description="Fetch posts from database", auth
 
 reset_password = Namespace('Reset Password',description="This is for resetting password")
 
-
+#adding namespaces to main app blueprints
 api.add_namespace(homespace,path='/')
 api.add_namespace(user_signup,path='/')
 api.add_namespace(user_login,path="/")
@@ -96,10 +96,12 @@ api.add_namespace(reset_password,path='/')
 class Home(Resource):
     @loguru.logger.catch()
     def get(self):
+        '''Introductory Route'''
         try:
             return {'msg': "Hello, world!"}
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @user_signup.route('/signup')
 class Signup(Resource):
@@ -170,14 +172,15 @@ class Signup(Resource):
 
                 return SingleSerializedUser.jsonify(newUser) , 201
             except Exception as e:
-                print(e)
+                logger.exception(Exception(e))
                 return (
                     ({  "Error":error["406"],
                         "msg": "Unable to create User"}),
                     406,
                 )
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
     @loguru.logger.catch() #for logging
     def get(self):
@@ -191,7 +194,10 @@ class Signup(Resource):
             logger.debug('Signup : {}'.format(request.method),request)
             return ({"Error":error["405"],"msg": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
+
+
 
 @user_login.route('/login')
 class Login(Resource):
@@ -279,7 +285,9 @@ class Login(Resource):
                 return ({
                     "Error":error["401"],"Description": "Wrong Password"}), 401
         except Exception as e:
-            raise Exception(e)
+            # raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'err'})
 
     @loguru.logger.catch() #for logging
     def get(self):
@@ -294,7 +302,8 @@ class Login(Resource):
                 "Error": error['405'],
                 "msg": "Method not allowed"}), 405
         except Exception as e:
-            Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @user_login.route('/OtpLogin')
 class LoginWithOtp(Resource):
@@ -351,7 +360,9 @@ class LoginWithOtp(Resource):
                 logger.info('No user found with the provided credentials')
                 return ({"Error":error['404'],"Description": "User not found"}), 404
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
+            
 
     @loguru.logger.catch() #for logging
     def get(self):
@@ -364,7 +375,8 @@ class LoginWithOtp(Resource):
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
             return ({"Error":error['405'],"msg": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @user_login.route('/change_status')
 class ChangeVerifiedStatus(Resource):
@@ -384,7 +396,8 @@ class ChangeVerifiedStatus(Resource):
 
             return ({"Status":error['200'],"Description": "status changed to False"}), 200
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
     
     @loguru.logger.catch() #for logging
     def get(self):
@@ -396,7 +409,8 @@ class ChangeVerifiedStatus(Resource):
             logger.debug('ChangeVerifiedStatus : {}'.format(request.method),request)
             return ({"Erro":error['405'],"Description": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @reset_password.route('/reset_password_request')
 
@@ -422,7 +436,8 @@ class ResetPasswordRequest(Resource):
                 logger.error("No user found with the specified email")
                 return ({"Error":error['401'],"Description": "User not found"}), 401
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
     @loguru.logger.catch() #for logging
     def get(self):
@@ -435,7 +450,8 @@ class ResetPasswordRequest(Resource):
             logger.debug('ResetPasswordRequest : {}'.format(request.method),request)
             return ({"Error":error['405'],"Description": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @reset_password.route('/reset_password/<token>')
 class ResetPassword(Resource):
@@ -463,7 +479,8 @@ class ResetPassword(Resource):
             logger.success("{} has successfully reset their password".format(user.username))
             return ({"Status":error['202'],"Description": "Password Changed"}), 202
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
     @loguru.logger.catch() #for logging
     def get(self, token):
@@ -477,7 +494,8 @@ class ResetPassword(Resource):
                 return ({"error":"401","Description": "Token expired or invalid user"}) , 401
             return make_response(render_template("reset.html"))
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @postspace.route('/posts/<int:page>')
 # @postspace.doc(security="api_key")
@@ -506,7 +524,8 @@ class PostRoutes(Resource):
             return (generate_data(page))
             # return MultiplePosts.jsonify(Posts.query.all())
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 
     @loguru.logger.catch() #for logging
@@ -518,7 +537,8 @@ class PostRoutes(Resource):
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
             return ({"Error":error['405'],"msg": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
 @postspace.route('/newPost')
 class NewPost(Resource):
@@ -531,7 +551,8 @@ class NewPost(Resource):
             logger.debug('LoginWithOtp : {}'.format(request.method),request)
             return ({"Error":error['405'],"msg": "Method not allowed"}), 405
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
 
     @loguru.logger.catch() #for logging
     def post(self):
@@ -550,4 +571,5 @@ class NewPost(Resource):
 
             return (SinglePosts.jsonify(newPost))
         except Exception as e:
-            raise Exception(e)
+            logger.exception(Exception(e))
+            return ({"Error":error['500'],"Description":'Internal Sever Error'})
