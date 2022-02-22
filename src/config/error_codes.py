@@ -57,28 +57,3 @@ error = {
     '510':'HTTP_510_NOT_EXTENDED',
     '511':'HTTP_511_NETWORK_AUTHENTICATION_REQUIRED',
 }
-
-
-def is_informational(status):
-    # 1xx
-    pass
-
-
-def is_success(status):
-    # 2xx
-    pass
-
-
-def is_redirect(status):
-    # 3xx
-    pass
-
-
-def is_client_error():
-    # 4xx
-    pass
-
-
-def is_server_error():
-    # 5xx
-    pass
