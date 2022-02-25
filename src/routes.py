@@ -458,10 +458,11 @@ class ResetPassword(Resource):
     @loguru.logger.catch() #for logging
     def post(self, token):
         '''
-            This method comes along with a token that validates the request and user
+            This method comes along with a token that validates the request and user (type and more info)
         '''
         try:
-            logger.debug('ResetPassword : {}'.format(request.method),request)
+            # docs
+            logger.debug('ResetPassword : {}'.format(request.method),request) 
             user = User.verify_reset_password_token(token)
             if not user:
                 logger.info("The link to reset password is invalid or it is expired")
@@ -491,6 +492,7 @@ class ResetPassword(Resource):
             logger.debug('ResetPassword : {}'.format(request.method),request)
             user = User.verify_reset_password_token(token)
             if not user:
+                logger.error('ResetPassword : {} || Token expired or invalid user'.format(request.method))
                 return ({"error":"401","Description": "Token expired or invalid user"}) , 401
             return make_response(render_template("reset.html"))
         except Exception as e:
